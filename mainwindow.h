@@ -65,6 +65,7 @@ private:
     int cuttingRectangle = 0;
     void cutRectangle();
     int count;
+    int speed;
 
 public slots:
     void closed();
@@ -95,6 +96,9 @@ private slots:
     void yes();
     void no();
     void abort();
+    void rise();
+    void land();
+    void setSpeed();
 };
 
 #endif // MAINWINDOW_H

@@ -116,6 +116,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     QObject::connect(port, SIGNAL(error(QString)), log, SLOT(error(QString)));
     QObject::connect(port, SIGNAL(out(QString)), log, SLOT(received(QString)));
     QObject::connect(log, SIGNAL(logEvent(QString)), this, SLOT(print(QString)));
+    QObject::connect(ui->riseButton, &QPushButton::clicked, this, &MainWindow::rise);
+    QObject::connect(ui->landButton, &QPushButton::clicked, this, &MainWindow::land);
+    QObject::connect(ui->speedButton, &QPushButton::clicked, this, &MainWindow::setSpeed);
     comThread->start();
 }
 
@@ -365,12 +368,10 @@ void MainWindow::cut(){
         }else{
             emit send("land(1, r)");
         }
-        emit send("speed(2, y, 50)");
         emit send("move(2, y, " + QString::number(0) + ')');
     }else{
         if(cutting == 1){
             cutting = 2;
-            emit send("speed(2, y, 100)");
             emit send("move(2, y, " + QString::number(cutStart) +')');
         }else{
             if(cutting == 2){
@@ -380,12 +381,10 @@ void MainWindow::cut(){
                 }else{
                     emit send("land(1, r)");
                 }
-                emit send("speed(2, y, 50)");
                 emit send("move(2, y, " + QString::number(-yLength) +')');
             }else{
                 if(cutting == 3){
                     cutting = 4;
-                    emit send("speed(2, y, 100)");
                     emit send("move(2, y, " + QString::number(cutStart) +')');
                     setMoveControlsEnabled(true);
                     emit send("move(2, x, " + QString::number(coordX + (int)(ui->stepLine->text().toDouble()*scaleX)) + ')');
@@ -472,4 +471,29 @@ void MainWindow::abort(){
     stopX();
     stopY();
     setMoveControlsEnabled(true);
+}
+
+void MainWindow::rise(){
+    if(ui->cutterL->isChecked()){
+        log->print("rise L");
+        emit send("rise(1, l)");
+    }else{
+        log->print("rise R");
+        emit send("rise(1, r)");
+    }
+}
+
+void MainWindow::land(){
+    if(ui->cutterL->isChecked()){
+        log->print("land L");
+        emit send("land(1, l)");
+    }else{
+        log->print("land R");
+        emit send("land(1, r)");
+    }
+}
+
+void MainWindow::setSpeed(){
+    speed = ui->speedBox->value();
+    emit send("speed(2, y, " + QString::number(speed) + ")");
 }
