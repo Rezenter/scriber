@@ -19,6 +19,8 @@ AccelStepper xAxis(1, xAxisStep, xAxisDir);
 bool dropped = false;
 bool moveX = true;
 bool moveY = true;
+bool mLed = true;
+unsigned long time = millis();
 
 void setup() {
   Serial.begin(9600);
@@ -31,6 +33,9 @@ void setup() {
   pinMode(relayL, OUTPUT);
   pinMode(xAxisSleep, OUTPUT);
   pinMode(yAxisSleep, OUTPUT);
+  pinMode(A0, OUTPUT);
+  pinMode(A1, OUTPUT);
+  analogWrite(A1, 512);
   xAxis.setMaxSpeed(500);
   yAxis.setMaxSpeed(500);
   yAxis.setAcceleration(60);
@@ -41,7 +46,6 @@ void setup() {
   digitalWrite(relayL, LOW);
   digitalWrite(xAxisSleep, LOW);
   digitalWrite(yAxisSleep, LOW);
-  
   Serial.println("connected()");
 }
 
@@ -54,6 +58,20 @@ void loop() {
       yAxis.stop();
       Serial.println("dropped()");
     }
+  }
+  if(moveX || moveY){
+    if(millis() - time >= 250){
+    if(mLed){
+      analogWrite(A1, 512);
+      mLed = false;
+    }else{
+      analogWrite(A1, 0);
+      mLed = true;
+    }
+    time = millis();
+    }
+  }else{
+    analogWrite(A1, 512);
   }
   if(xAxis.distanceToGo() == 0){
     if(moveX){
@@ -126,17 +144,14 @@ void calibrate(){
       yAxis.runSpeed();
     }
   }else{
-    //digitalWrite(yAxisSleep, LOW);
     while(digitalRead(xOptR) == LOW){
       xAxis.runSpeed();
     }
   }
-  //digitalWrite(yAxisSleep, LOW);
-  
   //get length
   yLength = -yAxis.currentPosition();
   xLength = -xAxis.currentPosition();
-
+  mLed = true;
   Serial.print("calibrated(");
   Serial.print(xLength);
   Serial.print(", ");
@@ -238,6 +253,7 @@ void interpretate(String command[]){
       }
     }else{
       if(command[0].equals("land")){
+        analogWrite(A0, 512);
         if(command[1].equals("r")){
           digitalWrite(relayR, HIGH);
         }else{
@@ -247,13 +263,13 @@ void interpretate(String command[]){
         dropped = false;
       }else{
         if(command[0].equals("rise")){
+          analogWrite(A0, 0);
           if(command[1].equals("r")){
             digitalWrite(relayR, LOW);
           }else{
             digitalWrite(relayL, LOW);
           }
         }else{
-          
             if(command[0].equals("calibrate")){
               calibrate();      
             }else{
@@ -287,4 +303,3 @@ void interpretate(String command[]){
     }
   }
 }
-
