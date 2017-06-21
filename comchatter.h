@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <QtSerialPort/QserialPort>
-#include <QMutex>
 
 class ComChatter : public QObject{
 
@@ -20,15 +19,12 @@ signals:
     void out(QString data);
     void dead();
 
-private:
-    QMutex mutex;
+
 
 public slots:
     void connect(QString name);
     void close();
     void send(QString data);
-
-private slots:
     void read();
 
 };

@@ -14,7 +14,7 @@ Scriber help:
 					# lastUsedPort = COM41
 					# windowSizeY = 536
 					# rectangleX = 60.00
-					# positionX = 20
+					# positionX = 2019
 					# windowSizeX = 570
 					# step = 10.00
 					# realLengthX = 65.3

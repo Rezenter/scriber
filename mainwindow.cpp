@@ -2,11 +2,13 @@
 #include "ui_mainwindow.h"
 #include <QtSerialPort/QSerialPortInfo>
 #include <stdlib.h>
+#include <QDebug>
 
 QT_USE_NAMESPACE
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
+    ui->widget = new RenderArea;
     log = new Logger();
     log->print(path);
     ui->setupUi(this);
@@ -26,82 +28,44 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     resize(settings.value("windowSizeX").toInt(), settings.value("windowSizeY").toInt());
     move(settings.value("positionX").toInt(), settings.value("positionY").toInt());
     setWindowTitle(settings.value("windowTitle", "windowTitleNotFound"));
-    ui->stackedWidget->setCurrentIndex(0);
     if(settings.value("cutter").compare("L") == 0){
         ui->cutterL->setChecked(true);
     }else{
         ui->cutterR->setChecked(true);
     }
-    if(settings.value("shape").compare("round") == 0){
-        ui->shapeRound->setChecked(true);
-    }else{
-        if(settings.value("shape").compare("else") == 0){
-            ui->shapeElse->setChecked(true);
-        }else{
-            ui->shapeRectangle->setChecked(true);
-        }
-    }
-    validator = new QDoubleValidator(0.0, 99.99, 2, this);
-    ui->rectangleXLine->setText(settings.value("rectangleX"));
-    ui->rectangleXLine->setValidator(validator);
-    ui->rectangleYLine->setText(settings.value("rectangleY"));
-    ui->rectangleYLine->setValidator(validator);
-    ui->roundLine->setText(settings.value("radius"));
-    ui->roundLine->setValidator(validator);
+
     realLengthX = settings.value("realLengthX", "0").toDouble();
     realLengthY = settings.value("realLengthY", "0").toDouble();
     setMoveControlsEnabled(false);
     ui->calibrateButton->setEnabled(false);
-    ui->coordLLabelMm->setText(QString::number(-realLengthX/2) + " [mm]");
-    ui->coordRLabelMm->setText(QString::number(realLengthX/2) + " [mm]");
-    ui->coordULabelMm->setText(QString::number(realLengthY) + " [mm]");
-    ui->coordDLabelMm->setText(QString::number(0) + " [mm]");
-    ui->stepLine->setText(settings.value("step"));
     scanPorts();
     comThread = new QThread();
     port = new ComChatter();
     port->moveToThread(comThread);
     port->port.moveToThread(comThread);
     int comboBoxDefault = ui->comboBoxx->findText(settings.value("lastUsedPort", "COM1"));
+    ui->aBox->setValue(settings.value("2a", "74").toDouble());
+    ui->bBox->setValue(settings.value("2b", "74").toDouble());
+    ui->lBox->setValue(settings.value("l", "1000").toDouble());
+    ui->hBox->setValue(settings.value("h", "5").toDouble());
+    ui->xBox->setValue(settings.value("x", "22").toDouble());
+    ui->yBox->setValue(settings.value("y", "14").toDouble());
     if(comboBoxDefault != -1){
         ui->comboBoxx->setCurrentIndex(comboBoxDefault);
     }
-    validator1 = new QIntValidator(-10000, 10000, this);
-    ui->moveXLineAbsoluteStep->setValidator(validator1);
-    ui->moveYLineAbsoluteStep->setValidator(validator1);
-    ui->moveXLineRelativeStep->setValidator(validator1);
-    ui->moveYLineRelativeStep->setValidator(validator1);
-    validator2 = new QDoubleValidator(-realLengthX/2, realLengthX/2, 2, this);
-    validator3 = new QDoubleValidator(0, realLengthY, 2, this);
-    validator4 = new QDoubleValidator(-realLengthY, realLengthY, 2, this);
-    ui->moveXLineAbsoluteMm->setValidator(validator2);
-    ui->moveYLineAbsoluteMm->setValidator(validator3);
-    ui->moveXLineRelativeMm->setValidator(validator2);
-    ui->moveYLineRelativeMm->setValidator(validator4);
-    validator5 = new QDoubleValidator(0, realLengthX, 2, this);
-    ui->stepLine->setValidator(validator5);
     QObject::connect(ui->runButton, &QPushButton::clicked, this, &MainWindow::transaction);
     QObject::connect(ui->scanButton, &QPushButton::clicked, this, &MainWindow::scanPorts);
     QObject::connect(ui->connectButton, &QPushButton::clicked, this, &MainWindow::connectVoid);
     QObject::connect(ui->stopXButton, &QPushButton::clicked, this, &MainWindow::stopX);
     QObject::connect(ui->stopYButton, &QPushButton::clicked, this, &MainWindow::stopY);
-    QObject::connect(ui->moveXButtonAbsoluteMm, &QPushButton::clicked, this, &MainWindow::moveXAbsoluteMm);
-    QObject::connect(ui->moveXButtonAbsoluteStep, &QPushButton::clicked, this, &MainWindow::moveXAbsoluteStep);
-    QObject::connect(ui->moveXButtonRelativeMm, &QPushButton::clicked, this, &MainWindow::moveXRelativeMm);
-    QObject::connect(ui->moveXButtonRelativeStep, &QPushButton::clicked, this, &MainWindow::moveXRelativeStep);
-    QObject::connect(ui->moveYButtonAbsoluteMm, &QPushButton::clicked, this, &MainWindow::moveYAbsoluteMm);
-    QObject::connect(ui->moveYButtonAbsoluteStep, &QPushButton::clicked, this, &MainWindow::moveYAbsoluteStep);
-    QObject::connect(ui->moveYButtonRelativeMm, &QPushButton::clicked, this, &MainWindow::moveYRelativeMm);
-    QObject::connect(ui->moveYButtonRelativeStep, &QPushButton::clicked, this, &MainWindow::moveYRelativeStep);
+    QObject::connect(ui->stopButton, &QPushButton::clicked, this, &MainWindow::stopY);
+    QObject::connect(ui->stopButton, &QPushButton::clicked, this, &MainWindow::stopX);
+    QObject::connect(ui->leftButton, &QPushButton::clicked, this, &MainWindow::moveXl);
+    QObject::connect(ui->upButton, &QPushButton::clicked, this, &MainWindow::moveYu);
+    QObject::connect(ui->rightButton, &QPushButton::clicked, this, &MainWindow::moveXr);
+    QObject::connect(ui->downButton, &QPushButton::clicked, this, &MainWindow::moveYd);
     QObject::connect(ui->calibrateButton, &QPushButton::clicked, this, &MainWindow::calibrate);
-    QObject::connect(ui->backButton, &QPushButton::clicked, this, &MainWindow::back);
     QObject::connect(ui->parkButton, &QPushButton::clicked, this, &MainWindow::park);
-    QObject::connect(ui->cutButton, &QPushButton::clicked, this, &MainWindow::cut);
-    QObject::connect(ui->autoCutButton, &QPushButton::clicked, this, &MainWindow::autoCut);
-    QObject::connect(ui->nextButton, &QPushButton::clicked, this, &MainWindow::next);
-    QObject::connect(ui->yesButton, &QPushButton::clicked, this, &MainWindow::yes);
-    QObject::connect(ui->noButton, &QPushButton::clicked, this, &MainWindow::no);
-    QObject::connect(ui->abortButton, &QPushButton::clicked, this, &MainWindow::abort);
     QObject::connect(port, SIGNAL(dead()), comThread, SLOT(quit()));
     QObject::connect(comThread, SIGNAL(finished()), port, SLOT(deleteLater()));
     QObject::connect(port, SIGNAL(dead()), comThread, SLOT(deleteLater()));
@@ -119,21 +83,26 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     QObject::connect(ui->riseButton, &QPushButton::clicked, this, &MainWindow::rise);
     QObject::connect(ui->landButton, &QPushButton::clicked, this, &MainWindow::land);
     QObject::connect(ui->speedButton, &QPushButton::clicked, this, &MainWindow::setSpeed);
+    QObject::connect(this, SIGNAL(setEll(qreal, qreal, qreal, qreal)), ui->widget, SLOT(setEll(qreal, qreal, qreal, qreal)));
+    QObject::connect(ui->aBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->bBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->lBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->hBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->xBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->yBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MainWindow::reDraw);
+    QObject::connect(ui->modeBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &MainWindow::reDraw);
+    QObject::connect(this, SIGNAL(setNet(qreal, qreal, int)), ui->widget, SLOT(setNet(qreal, qreal, int)));
+    QObject::connect(this, SIGNAL(setPosX(qreal)), ui->xWidget, SLOT(setPos(qreal)));
+    QObject::connect(this, SIGNAL(setPosY(qreal)), ui->yWidget, SLOT(setPos(qreal)));
     comThread->start();
+    reDraw();
 }
 
 MainWindow::~MainWindow()
 {
     comThread->quit();
     comThread->requestInterruption();
-    delete validator;
-    delete validator1;
-    delete validator2;
-    delete validator3;
-    delete validator4;
-    delete validator5;
-
-    log->print("QThread dead : ");
+    log->print("QThread dead ? : ");
     if(comThread->wait()){
         log->print("True");
     }else{
@@ -151,11 +120,12 @@ MainWindow::~MainWindow()
     settings["windowSizeY"] = QString::number(this->height());
     settings["positionX"] = QString::number(this->pos().x());
     settings["positionY"] = QString::number(this->pos().y());
-    settings["shape"] = ui->buttonGroup->checkedButton()->text();
-    settings["radius"] = ui->roundLine->text();
-    settings["rectangleX"] = ui->rectangleXLine->text();
-    settings["rectangleY"] = ui->rectangleYLine->text();
-    settings["step"] = ui->stepLine->text();
+    settings["2a"] = QString::number(ui->aBox->value());
+    settings["2b"] = QString::number(ui->bBox->value());
+    settings["l"] = QString::number(ui->lBox->value());
+    settings["h"] = QString::number(ui->hBox->value());
+    settings["x"] = QString::number(ui->xBox->value());
+    settings["y"] = QString::number(ui->yBox->value());
     saveDefaults();
     delete stream;
     save->close();
@@ -166,28 +136,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::setMoveControlsEnabled(bool enable)
 {
-    ui->cutButton->setEnabled(enable);
-    ui->moveXButtonAbsoluteMm->setEnabled(enable);
-    ui->moveXButtonAbsoluteStep->setEnabled(enable);
-    ui->moveXButtonRelativeMm->setEnabled(enable);
-    ui->moveXButtonRelativeStep->setEnabled(enable);
-    ui->moveYButtonAbsoluteMm->setEnabled(enable);
-    ui->moveYButtonAbsoluteStep->setEnabled(enable);
-    ui->moveYButtonRelativeMm->setEnabled(enable);
-    ui->moveYButtonRelativeStep->setEnabled(enable);
-    ui->moveXLineAbsoluteMm->setEnabled(enable);
-    ui->moveXLineAbsoluteStep->setEnabled(enable);
-    ui->moveXLineRelativeMm->setEnabled(enable);
-    ui->moveXLineRelativeStep->setEnabled(enable);
-    ui->moveYLineAbsoluteMm->setEnabled(enable);
-    ui->moveYLineAbsoluteStep->setEnabled(enable);
-    ui->moveYLineRelativeMm->setEnabled(enable);
-    ui->moveYLineRelativeStep->setEnabled(enable);
+    ui->line->setEnabled(enable);
     ui->parkButton->setEnabled(enable);
-    ui->nextButton->setEnabled(enable);
-    ui->autoCutButton->setEnabled(enable);
-    ui->backButton->setEnabled(enable);
-
+    //modify
 }
 
 
@@ -227,39 +178,31 @@ void MainWindow::in(QString data){
             if(command.at(0).compare("calibrated") == 0){
                 xLength = params.at(0).toInt();
                 yLength = params.at(1).toInt();
-                ui->coordLLabelStep->setText(QString::number(-xLength/2) + " [step]");
-                ui->coordRLabelStep->setText(QString::number(xLength/2) + " [step]");
-                ui->coordULabelStep->setText(QString::number(yLength) + " [step]");
-                ui->coordDLabelStep->setText(QString::number(0) + " [step]");
                 scaleX = xLength/realLengthX;
                 scaleY = yLength/realLengthY;
+                ui->xWidget->setup(xLength/2, scaleX);
+                ui->yWidget->setup(yLength, scaleY);
                 setMoveControlsEnabled(true);
-                ui->cutButton->setEnabled(false);
-                ui->autoCutButton->setEnabled(false);
             }else{
                 if(command.at(0).compare("stop") == 0){
-                    if(cutting > 0){
-                        cut();
-                    }else{
-                        if(cuttingRectangle > 0){
-                            cutRectangle();
-                        }
-                    }
                     if(params.at(0).trimmed().compare("x") == 0){
                         coordX = params.at(1).trimmed().toInt();
                         movingX = false;
+                        emit setPosX(coordX);
                     }else{
                         coordY = params.at(1).trimmed().toInt();
                         movingY = false;
+                        emit setPosY(coordY);
                     }
+
                     if(!movingX && !movingY){
-                        ui->cutButton->setEnabled(true);
-                        ui->autoCutButton->setEnabled(true);
+                        if(parking){
+                            parking = false;
+                            setSpeed();
+                        }
                     }
                 }else{
                     if(command.at(0).compare("moving") == 0){
-                        ui->cutButton->setEnabled(false);
-                        ui->autoCutButton->setEnabled(false);
                         if(params.at(0).trimmed().compare("x") == 0){
                             movingX = true;
                         }else{
@@ -292,44 +235,56 @@ void MainWindow::stopY()
     emit send("stop(1, y)");
 }
 
-void MainWindow::moveXAbsoluteStep()
-{
-    emit send("move(2, x, " + QString::number(-(int)(ui->moveXLineAbsoluteStep->text().toInt() + (xLength/2))) + ')');
+void MainWindow::moveXr(){
+    if(ui->mmBox->isChecked()){
+        moveXRelativeMm(1);
+    }else{
+        moveXRelativeStep(1);
+    }
 }
 
-void MainWindow::moveXAbsoluteMm()
-{
-    emit send("move(2, x, " + QString::number((int)( - (ui->moveXLineAbsoluteMm->text().toDouble()*scaleX) - (xLength/2))) + ')');
+void MainWindow::moveYu(){
+    if(ui->mmBox->isChecked()){
+        moveYRelativeMm(1);
+    }else{
+        moveYRelativeStep(1);
+    }
 }
 
-void MainWindow::moveXRelativeStep()
-{
-    emit send("move(2, x, " + QString::number(coordX - ui->moveXLineRelativeStep->text().toInt()) +  ')');
+void MainWindow::moveXl(){
+    if(ui->mmBox->isChecked()){
+        moveXRelativeMm(-1);
+    }else{
+        moveXRelativeStep(-1);
+    }
 }
 
-void MainWindow::moveXRelativeMm()
-{
-    emit send("move(2, x, " + QString::number(coordX - (int)(ui->moveXLineRelativeMm->text().toDouble()*scaleX)) + ')');
+void MainWindow::moveYd(){
+    if(ui->mmBox->isChecked()){
+        moveYRelativeMm(-1);
+    }else{
+        moveYRelativeStep(-1);
+    }
 }
 
-void MainWindow::moveYAbsoluteStep()
+void MainWindow::moveXRelativeStep(int sign)
 {
-    emit send("move(2, y, " + QString::number(-(ui->moveYLineAbsoluteStep->text().toInt())) + ')');
+    emit send("move(2, x, " + QString::number(coordX - ui->line->text().toInt()*sign) +  ')');
 }
 
-void MainWindow::moveYAbsoluteMm()
+void MainWindow::moveXRelativeMm(int sign)
 {
-    emit send("move(2, y, " + QString::number(-((int)(ui->moveYLineAbsoluteMm->text().toDouble()*scaleY))) + ')');
+    emit send("move(2, x, " + QString::number(coordX - (int)(ui->line->text().toDouble()*scaleX*sign)) + ')');
 }
 
-void MainWindow::moveYRelativeStep()
+void MainWindow::moveYRelativeStep(int sign)
 {
-    emit send("move(2, y, " + QString::number(coordY - ui->moveYLineRelativeStep->text().toInt()) + ')');
+    emit send("move(2, y, " + QString::number(coordY - ui->line->text().toInt()*sign) + ')');
 }
 
-void MainWindow::moveYRelativeMm()
+void MainWindow::moveYRelativeMm(int sign)
 {
-    emit send("move(2, y, " + QString::number(coordY - (int)(ui->moveYLineRelativeMm->text().toDouble()*scaleY)) + ')');
+    emit send("move(2, y, " + QString::number(coordY - (int)(ui->line->text().toDouble()*scaleY*sign)) + ')');
 }
 
 void MainWindow::calibrate(){
@@ -343,6 +298,7 @@ void MainWindow::park(){
     emit send("speed(2, y, 500)");
     emit send("move(2, x, " + QString::number(-(int)(xLength/2)) + ")");
     emit send("move(2, y, " + QString::number(-(yLength)) + ")");
+    parking = true;
 }
 
 void MainWindow::saveDefaults(){
@@ -355,122 +311,8 @@ void MainWindow::saveDefaults(){
     }
 }
 
-void MainWindow::cut(){
-    log->print("cut");
-    ui->cutButton->setEnabled(false);
-    ui->autoCutButton->setEnabled(false);
-    if(cutting == 0){
-        cutting = 1;
-        cutStart = coordY;
-        setMoveControlsEnabled(false);
-        if(ui->cutterL->isChecked()){
-            emit send("land(1, l)");
-        }else{
-            emit send("land(1, r)");
-        }
-        emit send("move(2, y, " + QString::number(0) + ')');
-    }else{
-        if(cutting == 1){
-            cutting = 2;
-            emit send("move(2, y, " + QString::number(cutStart) +')');
-        }else{
-            if(cutting == 2){
-                cutting = 3;
-                if(ui->cutterL->isChecked()){
-                    emit send("land(1, l)");
-                }else{
-                    emit send("land(1, r)");
-                }
-                emit send("move(2, y, " + QString::number(-yLength) +')');
-            }else{
-                if(cutting == 3){
-                    cutting = 4;
-                    emit send("move(2, y, " + QString::number(cutStart) +')');
-                    setMoveControlsEnabled(true);
-                    emit send("move(2, x, " + QString::number(coordX + (int)(ui->stepLine->text().toDouble()*scaleX)) + ')');
-                }else{
-                    cutting = 0;
-                }
-            }
-        }
-    }
-}
-
-void MainWindow::next(){
-    if(ui->buttonGroup->checkedButton()->text().compare("else") == 0){
-        ui->stackedWidget->setCurrentIndex(1);
-        ui->shapeCutButtonsStacked->setCurrentIndex(0);
-    }else{
-        ui->stackedWidget->setCurrentIndex(1);
-        ui->shapeCutButtonsStacked->setCurrentIndex(2);
-    }
-}
-
-void MainWindow::back(){
-    ui->stackedWidget->setCurrentIndex(0);
-}
-
 void MainWindow::print(QString data){
     ui->textBrowser->append(data);
-}
-
-void MainWindow::autoCut(){
-    log->print("autoCut");
-    if(ui->buttonGroup->checkedButton()->text().compare("round") == 0){
-        count = floor((2*ui->roundLine->text().toDouble())/ui->stepLine->text().toDouble());
-        log->print("round " + ui->roundLine->text());
-    }else{
-        count = floor(ui->rectangleXLine->text().toDouble()/ui->stepLine->text().toDouble());
-        log->print("rectangle " + ui->rectangleXLine->text());
-    }
-    if(count > 0){
-        //count++;
-    }
-    cutRectangle();
-}
-
-void MainWindow::cutRectangle(){
-
-    ui->autoCutButton->setEnabled(false);
-    if(cuttingRectangle == 0){
-        setMoveControlsEnabled(false);
-        cuttingRectangle = 1;
-        cutRectangle();
-    }else{
-        if(cuttingRectangle == 1){
-            if(count > 0){
-                cut();
-                count--;
-            }else{
-                cuttingRectangle = 0;
-                setMoveControlsEnabled(true);
-                ui->shapeCutButtonsStacked->setCurrentIndex(1);
-            }
-        }
-    }
-}
-
-void MainWindow::yes(){
-    log->print("swapping x/y");
-    park();
-    QString tmp = ui->rectangleXLine->text();
-    ui->rectangleXLine->setText(ui->rectangleYLine->text());
-    ui->rectangleYLine->setText(tmp);
-    ui->shapeCutButtonsStacked->setCurrentIndex(2);
-}
-
-void MainWindow::no(){
-    log->print("no swapping x/y");
-    ui->shapeCutButtonsStacked->setCurrentIndex(2);
-}
-
-void MainWindow::abort(){
-    log->print("abort");
-    cutting = 0;
-    count = 0;
-    stopX();
-    stopY();
-    setMoveControlsEnabled(true);
 }
 
 void MainWindow::rise(){
@@ -495,5 +337,22 @@ void MainWindow::land(){
 
 void MainWindow::setSpeed(){
     speed = ui->speedBox->value();
+    log->print("set Y speed = " + QString::number(speed));
     emit send("speed(2, y, " + QString::number(speed) + ")");
+}
+
+void MainWindow::reDraw(){
+    if(ui->bBox->value() > ui->aBox->value()){
+        ui->bBox->setValue(ui->aBox->value());
+    }
+    if(ui->lBox->value() > ui->aBox->value()){
+        ui->lBox->setValue(ui->aBox->value());
+    }
+    if(ui->hBox->value() > ui->lBox->value()){
+        ui->hBox->setValue(ui->lBox->value());
+    }
+    if(ui->xBox->value() != 0 && ui->yBox->value() != 0){
+        emit setEll(ui->aBox->value()/2, ui->bBox->value()/2, ui->lBox->value(), ui->hBox->value());
+        emit setNet(ui->xBox->value(), ui->yBox->value(), ui->modeBox->currentIndex());
+    }
 }

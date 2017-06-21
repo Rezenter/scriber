@@ -13,13 +13,19 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
+    mainwindow.cpp \
     comchatter.cpp \
-    logger.cpp
+    logger.cpp \
+    renderarea.cpp \
+    xline.cpp \
+    yline.cpp
 
 HEADERS  += mainwindow.h \
     comchatter.h \
-    logger.h
+    logger.h \
+    renderarea.h \
+    xline.h \
+    yline.h
 
 FORMS    += \
     mainwindow.ui

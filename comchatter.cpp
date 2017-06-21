@@ -1,5 +1,4 @@
 #include "comchatter.h"
-#include <qdebug.h>
 
 ComChatter::ComChatter(QObject *parent) : QObject(parent){
 
@@ -12,14 +11,12 @@ ComChatter::~ComChatter(){
 }
 
 void ComChatter::connect(QString name){
-    mutex.lock();
     port.setPortName(name);
     port.setBaudRate(QSerialPort::Baud9600);
     port.setDataBits(QSerialPort::Data8);
     port.setParity(QSerialPort::NoParity);
     port.setStopBits(QSerialPort::OneStop);
     port.setFlowControl(QSerialPort::NoFlowControl);
-    mutex.unlock();
     QObject::connect(&port, SIGNAL(readyRead()), this, SLOT(read()));
     if (port.open(QIODevice::ReadWrite)) {
         if (port.isOpen()){

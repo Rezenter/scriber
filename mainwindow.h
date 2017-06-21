@@ -5,6 +5,7 @@
 #include <QThread>
 #include "comchatter.h"
 #include "logger.h"
+#include "renderarea.h"
 #include <QFile>
 #include <QHash>
 #include <QDoubleValidator>
@@ -25,21 +26,19 @@ public:
     ~MainWindow();
 
 signals:
-    void connect(QString name);
+    void connect(QString);
     void close();
-    void send(QString data);
+    void send(QString);
+    void setEll(qreal, qreal, qreal, qreal);
+    void setNet(qreal, qreal, int);
+    void setPosX(qreal);
+    void setPosY(qreal);
 
 private:
-    QDoubleValidator *validator;
-    QIntValidator *validator1;
-    QDoubleValidator *validator2;
-    QDoubleValidator *validator3;
-    QDoubleValidator *validator4;
-    QDoubleValidator *validator5;
     QString path = QCoreApplication::applicationDirPath();
     QFile *save;
     QTextStream *stream;
-    void setMoveControlsEnabled(bool enable);
+    void setMoveControlsEnabled(bool);
     Ui::MainWindow *ui;
     bool opened = false;
     QThread *comThread;
@@ -58,20 +57,20 @@ private:
     double scaleX;
     double scaleY;
     int drop;
-    int cutStart;
     int substrate;
-    int cutting = 0;
-    int cuttingRound = 0;
-    int cuttingRectangle = 0;
-    void cutRectangle();
     int count;
     int speed;
+    bool parking;
+    void moveXRelativeMm(int);
+    void moveXRelativeStep(int);
+    void moveYRelativeMm(int);
+    void moveYRelativeStep(int);
 
 public slots:
     void closed();
-    void error(QString error);
-    void in(QString data);
-    void print(QString data);
+    void error(QString);
+    void in(QString);
+    void print(QString);
 
 private slots:
     void scanPorts();
@@ -79,26 +78,16 @@ private slots:
     void connectVoid();
     void stopX();
     void stopY();
-    void moveXAbsoluteMm();
-    void moveXAbsoluteStep();
-    void moveXRelativeMm();
-    void moveXRelativeStep();
-    void moveYAbsoluteMm();
-    void moveYAbsoluteStep();
-    void moveYRelativeMm();
-    void moveYRelativeStep();
+    void moveXl();
+    void moveYu();
+    void moveXr();
+    void moveYd();
     void calibrate();
     void park();
-    void cut();
-    void next();
-    void back();
-    void autoCut();
-    void yes();
-    void no();
-    void abort();
     void rise();
     void land();
     void setSpeed();
+    void reDraw();
 };
 
 #endif // MAINWINDOW_H
